@@ -15,7 +15,7 @@ namespace tracert {
 
         public static PingReply GetServerResponse(int ttl, int waitFor, IPAddress hostAddress)
         {
-            return new Ping().Send(hostAddress, 2000, new byte[32], new PingOptions(ttl, false));
+            return new Ping().Send(hostAddress, waitFor, new byte[32], new PingOptions(ttl, false));
         }
     }
 }

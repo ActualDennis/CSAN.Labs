@@ -9,17 +9,28 @@ namespace tracert {
         {
             if (args.Length == 0)
             {
-                Console.WriteLine("This program requeres command line arguments , usage: tracert.exe hostOrIpAddress [max hops count]");
+                Console.WriteLine("This program requeres command line arguments , usage: tracert.exe hostOrIpAddress [max hops count] [-EnableRevLookUp]");
                 Console.ReadLine();
                 return;
             }
             int maxHopsCount = 0;
 
-            if(args.Length == 2)
+            if(args.Length >= 2)
             {
                 if (!int.TryParse(args[1], out maxHopsCount))
                 {
                     maxHopsCount = 30;
+                }
+
+                maxHopsCount = maxHopsCount < 20 ? 20 : maxHopsCount;
+
+            }
+            bool IsReverseLookUpEnabled = false;
+            if(args.Length == 3)
+            {
+                if (args[2].ToUpper() == "-ENABLEREVLOOKUP")
+                {
+                    IsReverseLookUpEnabled = true;
                 }
             }
 
@@ -46,7 +57,7 @@ namespace tracert {
 
                         if (firstRes == 0 && secondRes == 0 && thirdRes == 0)
                             Console.Write(" Request timed out.");
-                        else
+                        else if(IsReverseLookUpEnabled)
                             Console.Write($" {NamesResolver.GetHostNameByIp(response.Address) ?? string.Empty}");
 
 
