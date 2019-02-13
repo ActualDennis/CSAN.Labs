@@ -32,14 +32,14 @@ namespace tracert {
 
                 for (int i = 1; i < maxHopsCount; ++i)
                 {
-                    var y = pinger.Send(remoteAddress, 2000, new byte[64], new PingOptions(i, false));
-                    if (y.Status == IPStatus.TtlExpired || y.Status == IPStatus.Success)
+                    var response = TraceRouteHelper.GetServerResponse(i, 2000, remoteAddress);
+                    if (response.Status == IPStatus.TtlExpired || response.Status == IPStatus.Success)
                     {
-                        var firstRes = GetServerResponseTime(y.Address);
-                        var secondRes = GetServerResponseTime(y.Address);
-                        var thirdRes = GetServerResponseTime(y.Address);
+                        var firstRes = TraceRouteHelper.GetServerResponseTime(response.Address);
+                        var secondRes = TraceRouteHelper.GetServerResponseTime(response.Address);
+                        var thirdRes = TraceRouteHelper.GetServerResponseTime(response.Address);
 
-                        Console.Write($"{i} {y.Address} " +
+                        Console.Write($"{i} {response.Address} " +
                             $": {(firstRes == 0 ? "*" : firstRes.ToString())}ms " +
                             $": {(secondRes == 0 ? "*" : secondRes.ToString())}ms " +
                             $": {(thirdRes == 0 ? "*" : thirdRes.ToString())}ms");
@@ -47,17 +47,17 @@ namespace tracert {
                         if (firstRes == 0 && secondRes == 0 && thirdRes == 0)
                             Console.Write(" Request timed out.");
                         else
-                            Console.Write($" {NamesResolver.GetHostNameByIp(y.Address) ?? string.Empty}");
+                            Console.Write($" {NamesResolver.GetHostNameByIp(response.Address) ?? string.Empty}");
 
 
                          Console.WriteLine();
 
-                        if (y.Address.ToString() == remoteAddress.ToString())
+                        if (response.Address.ToString() == remoteAddress.ToString())
                             break;
                     }
                     else
                     {
-                        Console.WriteLine($"{i} {y.Address} * * * Request timed out.");
+                        Console.WriteLine($"{i} {response.Address} * * * Request timed out.");
                     }
 
                     if(i == maxHopsCount - 1)
@@ -73,11 +73,6 @@ namespace tracert {
                 Console.WriteLine(ex.Message);
             }
             finally { Console.ReadLine(); }
-        }
-
-        static long GetServerResponseTime(IPAddress address)
-        {
-            return new Ping().Send(address, 64, new byte[32]).RoundtripTime;
         }
 
     }
