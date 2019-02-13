@@ -1,0 +1,7 @@
+C:\Users\Denni\Desktop\Ksis-labs\tracert\tracert\tracert\bin\Debug\tracert.exe.config
+C:\Users\Denni\Desktop\Ksis-labs\tracert\tracert\tracert\bin\Debug\tracert.exe
+C:\Users\Denni\Desktop\Ksis-labs\tracert\tracert\tracert\bin\Debug\tracert.pdb
+C:\Users\Denni\Desktop\Ksis-labs\tracert\tracert\tracert\obj\Debug\tracert.csprojAssemblyReference.cache
+C:\Users\Denni\Desktop\Ksis-labs\tracert\tracert\tracert\obj\Debug\tracert.csproj.CoreCompileInputs.cache
+C:\Users\Denni\Desktop\Ksis-labs\tracert\tracert\tracert\obj\Debug\tracert.exe
+C:\Users\Denni\Desktop\Ksis-labs\tracert\tracert\tracert\obj\Debug\tracert.pdb
