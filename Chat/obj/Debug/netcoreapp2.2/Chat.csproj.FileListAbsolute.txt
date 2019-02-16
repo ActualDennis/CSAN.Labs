@@ -1,0 +1,11 @@
+C:\Users\Denni\Desktop\Ksis-labs\Chat\obj\Debug\netcoreapp2.2\Chat.csprojAssemblyReference.cache
+C:\Users\Denni\Desktop\Ksis-labs\Chat\obj\Debug\netcoreapp2.2\Chat.csproj.CoreCompileInputs.cache
+C:\Users\Denni\Desktop\Ksis-labs\Chat\obj\Debug\netcoreapp2.2\Chat.AssemblyInfoInputs.cache
+C:\Users\Denni\Desktop\Ksis-labs\Chat\obj\Debug\netcoreapp2.2\Chat.AssemblyInfo.cs
+C:\Users\Denni\Desktop\Ksis-labs\Chat\bin\Debug\netcoreapp2.2\Chat.deps.json
+C:\Users\Denni\Desktop\Ksis-labs\Chat\bin\Debug\netcoreapp2.2\Chat.runtimeconfig.json
+C:\Users\Denni\Desktop\Ksis-labs\Chat\bin\Debug\netcoreapp2.2\Chat.runtimeconfig.dev.json
+C:\Users\Denni\Desktop\Ksis-labs\Chat\bin\Debug\netcoreapp2.2\Chat.dll
+C:\Users\Denni\Desktop\Ksis-labs\Chat\bin\Debug\netcoreapp2.2\Chat.pdb
+C:\Users\Denni\Desktop\Ksis-labs\Chat\obj\Debug\netcoreapp2.2\Chat.dll
+C:\Users\Denni\Desktop\Ksis-labs\Chat\obj\Debug\netcoreapp2.2\Chat.pdb

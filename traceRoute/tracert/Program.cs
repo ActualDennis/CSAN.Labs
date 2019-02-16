@@ -5,6 +5,8 @@ using System.Net.Sockets;
 
 namespace tracert {
     class Program {
+        public int Field { get; set; }
+
         static void Main(string[] args)
         {
             if (args.Length == 0)
@@ -15,7 +17,7 @@ namespace tracert {
             }
             int maxHopsCount = 0;
 
-            if(args.Length >= 2)
+            if (args.Length >= 2)
             {
                 if (!int.TryParse(args[1], out maxHopsCount))
                 {
