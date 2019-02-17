@@ -1,4 +1,7 @@
-﻿using Chat.Logging;
+﻿using Chat.Chat_history;
+using Chat.Connections;
+using Chat.Logging;
+using Chat.Messages_Tracer;
 using System;
 
 namespace Chat
@@ -9,15 +12,35 @@ namespace Chat
         {
             Console.WriteLine("Welcome to the p2p chat!");
             Console.WriteLine("Please, type in your username.");
-            var input = Console.ReadLine().ToUpper();
+            var input = Console.ReadLine();
 
-            var client = new PtpClient(new ConsoleLogger());
-            client.ClientName = input;
-            client.Initialize();
-            while (true)
+            try
             {
-                var message = Console.ReadLine();
-                client.SendMessage(message);
+
+                var connManager = new PtpConnectionManager(
+                    input,
+                    new MessagesTracer(),
+                    new ChatHistorySender(),
+                    new ChatHistoryReceiver()
+                    );
+
+                var client = 
+                    new PtpClient(
+                    new ConsoleLogger(),
+                    connManager)
+                    {
+                        ClientName = input
+                    };
+
+                while (true)
+                {
+                    var message = Console.ReadLine();
+                    client.SendMessage(message);
+                }
+            }
+            catch(Exception ex)
+            {
+                Console.WriteLine(ex.Message);
             }
         }
     }
