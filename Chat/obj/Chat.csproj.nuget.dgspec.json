@@ -1,17 +1,17 @@
 {
   "format": 1,
   "restore": {
-    "C:\\Users\\Denni\\Desktop\\Ksis-labs\\Chat\\Chat.csproj": {}
+    "C:\\Users\\Denni\\Documents\\GitHub\\CSAN.labs\\Chat\\Chat.csproj": {}
   },
   "projects": {
-    "C:\\Users\\Denni\\Desktop\\Ksis-labs\\Chat\\Chat.csproj": {
+    "C:\\Users\\Denni\\Documents\\GitHub\\CSAN.labs\\Chat\\Chat.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "C:\\Users\\Denni\\Desktop\\Ksis-labs\\Chat\\Chat.csproj",
+        "projectUniqueName": "C:\\Users\\Denni\\Documents\\GitHub\\CSAN.labs\\Chat\\Chat.csproj",
         "projectName": "Chat",
-        "projectPath": "C:\\Users\\Denni\\Desktop\\Ksis-labs\\Chat\\Chat.csproj",
+        "projectPath": "C:\\Users\\Denni\\Documents\\GitHub\\CSAN.labs\\Chat\\Chat.csproj",
         "packagesPath": "C:\\Users\\Denni\\.nuget\\packages\\",
-        "outputPath": "C:\\Users\\Denni\\Desktop\\Ksis-labs\\Chat\\obj\\",
+        "outputPath": "C:\\Users\\Denni\\Documents\\GitHub\\CSAN.labs\\Chat\\obj\\",
         "projectStyle": "PackageReference",
         "fallbackFolders": [
           "C:\\Program Files\\dotnet\\sdk\\NuGetFallbackFolder"

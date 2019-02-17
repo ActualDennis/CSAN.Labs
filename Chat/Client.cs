@@ -109,9 +109,6 @@ namespace Chat {
                 {
                     var username = receivedMessage.Replace("USR ", string.Empty);
 
-                    if (username == clientName)
-                        continue;
-
                     int index = 0;
                     do
                     {
@@ -169,7 +166,12 @@ namespace Chat {
             newConnection.Connect(new IPEndPoint(connectedUserEntries[userEntryIndex].ipAddress, DefaultValues.TcpPort));
             connectedUserEntries[userEntryIndex].chatConnection = newConnection;
 
-            _ = Task.Run(() => TraceConnectionMessages(newConnection));
+            _ = Task.Run(() => TraceConnectionMessages(
+                newConnection,
+                newConnection.Client.GetRemoteEndPointIpAddress()
+                == newConnection.Client.GetLocalEndPointIpAddress()));
+
+            logger.Log($"Connected to {connectedUserEntries[userEntryIndex].username} .");
 
             //send who we are to the user
 
@@ -192,7 +194,13 @@ namespace Chat {
             {
                 var clientConnection = messagesListener.AcceptTcpClient();
 
-                var address = ((IPEndPoint)clientConnection.Client.RemoteEndPoint).Address;
+                var address = clientConnection.Client.GetRemoteEndPointIpAddress(false);
+
+                //do not duplicate this user's connection
+
+                //if (address.ToString() ==
+                //    ((IPEndPoint)clientConnection.Client.LocalEndPoint).Address.ToString())
+                //    continue;
 
                 connectedUserEntries.Add(new PtpUserEntry()
                 {
@@ -217,9 +225,9 @@ namespace Chat {
                     .username;
                 }
 
-                logger.LogLocal($"User {currentUsername} connected.");
+                logger.Log($"User {currentUsername} connected.");
 
-                _ = Task.Run(() => TraceConnectionMessages(clientConnection));
+                _ = Task.Run(() => TraceConnectionMessages(clientConnection, false));
             }
         }
 
@@ -227,13 +235,18 @@ namespace Chat {
 
         /// <summary>
         /// Waits for messages from the "connection" parameter
-        /// And displays them
+        /// And displays them.
+        /// If it's local connection, i.e this user wants to see his own messages,
+        /// he should trace messages only once.
         /// </summary>
         /// <param name="connection"></param>
         /// <returns></returns>
-        private async Task TraceConnectionMessages(TcpClient connection)
+        private async Task TraceConnectionMessages(TcpClient connection, bool IsLocalConnection)
         {
-            var address = ((IPEndPoint)connection.Client.RemoteEndPoint).Address;
+            if (IsLocalConnection)
+                return;
+
+            var address = connection.Client.GetRemoteEndPointIpAddress(false);
             var username = connectedUserEntries.Find((x) => x.ipAddress.Equals(address)).username;
 
             try
