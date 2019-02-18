@@ -69,19 +69,17 @@ namespace traceroute_pcap {
                 selectedCaptureDevice.Open(65536, // portion of the packet to capture
                                                  // 65536 guarantees that the whole packet will be captured on all the link layers
                                          PacketDeviceOpenAttributes.None,
-                                         1000)) // read timeout
+                                         500)) // read timeout
             {
                 var timeStampSent =  new DateTime();
                 inputCommunicator.SetFilter("ip proto \\icmp and dst host \\192.168.0.104");
                 bool IsCompleted = false;
+                byte maxErrorPackets = 10;
 
                 for(byte ttl = 1; ttl < 20 && !IsCompleted; ++ttl)
                 {
-                    Console.WriteLine();
-
                     for (int trie = 0; trie < _maxTries; ++trie)
-                    {
-                        timeStampSent = DateTime.UtcNow;
+                    {                     
                         sendCommunicator.SendPacket(BuildIcmpPacket(destinationIpAddress.ToString(), ttl));
      
                         inputCommunicator.ReceivePacket(out var receivedPacket);
@@ -98,9 +96,46 @@ namespace traceroute_pcap {
 
                         if (icmpDatagram.MessageType == IcmpMessageType.TimeExceeded || icmpDatagram.MessageType == IcmpMessageType.EchoReply)
                         {
+
+                            //send ping to determine latency
+
+                            timeStampSent = DateTime.UtcNow;
+
+                            sendCommunicator.SendPacket(BuildIcmpPacket(ipDatagram.Source.ToString(), 64));
+
+                            byte errorPacketsCounter = 0;
+
+                            //server may send some random packets, which are not echo replies,
+                            //wait for {maxErrorPackets} packets for our packet to arrive
+
+                            while (errorPacketsCounter < maxErrorPackets)
+                            {
+                                inputCommunicator.ReceivePacket(out var echoPacket);
+
+                                if (echoPacket == null)
+                                {
+                                    ++errorPacketsCounter;
+                                    continue;
+                                }
+
+                                var echoDgram = echoPacket.Ethernet.Ip.Icmp;
+
+                                if (echoDgram.MessageType == IcmpMessageType.EchoReply)
+                                {
+                                    Console.Write($" {(echoPacket.Timestamp - timeStampSent).Milliseconds} ms  ");
+                                    break;
+                                }
+                                else
+                                    ++errorPacketsCounter;
+                            }
+
+                            if (errorPacketsCounter == maxErrorPackets)
+                                Console.Write("    *    ");
+
+                            //on the third ping, output ip address [and hostname] of the source.
+
                             if (trie == _maxTries - 1)
                             {
-                                Console.Write($" {(receivedPacket.Timestamp - timeStampSent).Milliseconds}ms  ");
 
                                 Console.Write($" {ipDatagram.Source.ToString()} : ");
 
@@ -117,11 +152,7 @@ namespace traceroute_pcap {
                                     IsCompleted = true;
                                     break;
                                 }
-
-                                continue;
                             }
-
-                            Console.Write($" {(receivedPacket.Timestamp - timeStampSent).Milliseconds} ms  ");
                         }
                 
                     }
