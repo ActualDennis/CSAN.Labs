@@ -22,7 +22,26 @@ namespace Chat {
             this.connectionManager = connectionManager;
             this.connectionManager.OnEventHappened += ConnectionManager_OnEventHappened;
             this.connectionManager.OnLocalEventHappened += ConnectionManager_OnLocalEventHappened;
+            this.connectionManager.OnChatHistoryUpdated += ConnectionManager_OnChatHistoryUpdated;
             connectionManager.Start();
+        }
+
+        private void ConnectionManager_OnChatHistoryUpdated(object sender, ChatHistoryUpdatedEventArgs e)
+        {
+            var history = e.chatHistoryEntries;
+
+            if (history == null)
+            {
+                logger.LogLocal("Local error happened while receiving the chat history.");
+                return;
+            }
+
+            Console.WriteLine("<----Chat history start---->");
+
+            foreach (var entry in history)
+            {
+                logger.Log(entry);
+            }
         }
 
         private string clientName;

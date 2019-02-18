@@ -20,7 +20,7 @@ namespace Chat
                 var connManager = new PtpConnectionManager(
                     input,
                     new MessagesTracer(),
-                    new ChatHistorySender(),
+                    new ChatHistoryContainer(),
                     new ChatHistoryReceiver()
                     );
 

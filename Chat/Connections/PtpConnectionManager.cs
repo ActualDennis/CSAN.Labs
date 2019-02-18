@@ -3,6 +3,7 @@ using Chat.Events;
 using Chat.Messages_Tracer;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
@@ -13,14 +14,14 @@ namespace Chat.Connections {
         public PtpConnectionManager(
             string clientName,
             ITcpTracer messagesTracer,
-            IChatHistorySender chatHistorySender,
+            IChatHistoryContainer chatHistorySender,
             IChatHistoryReceiver chatHistoryReceiver
             )
         {
             Initialize();
             this.clientName = clientName;
             this.messagesTracer = messagesTracer;
-            this.chatHistorySender = chatHistorySender;
+            this.chatHistoryContainer = chatHistorySender;
             this.chatHistoryReceiver = chatHistoryReceiver;
             this.messagesTracer.OnMessageReceived += MessagesTracer_OnMessageReceived;
             this.messagesTracer.OnUserDisconnected += MessagesTracer_OnUserDisconnected;
@@ -55,6 +56,8 @@ namespace Chat.Connections {
         public event EventHandler<LogEventArgs> OnLocalEventHappened;
 
         public event EventHandler<LogEventArgs> OnEventHappened;
+
+        public event EventHandler<ChatHistoryUpdatedEventArgs> OnChatHistoryUpdated;
          
         private List<PtpUserEntry> connectedUserEntries { get; set; }
 
@@ -70,17 +73,23 @@ namespace Chat.Connections {
 
         private static IPEndPoint DefaultOnConnectedEndpoint => new IPEndPoint(IPAddress.Broadcast, DefaultValues.UdpBroadCastPort);
 
-        public IChatHistorySender chatHistorySender { get; set; }
+        public IChatHistoryContainer chatHistoryContainer { get; set; }
 
         public IChatHistoryReceiver chatHistoryReceiver { get; set; }
 
         private const int MaxWaitTries = 10;
 
+        private const int MaxUpdateChatHistoryTries = 10; 
+
         public async Task Start()
         {
             await OnConnected();
             _ = Task.Run(() => UdpPacketsListener());
+            _ = Task.Run(() => chatHistoryContainer.StartListening());
+            _ = Task.Run(() => TryUpdateChatHistory());
         }
+
+        #region Connection stuff
 
         /// <summary>
         /// When connected, sends broadcast message 
@@ -246,11 +255,21 @@ namespace Chat.Connections {
 
                 var message = $"User {currentUsername} connected.";
                 OnEventHappened?.Invoke(this, new LogEventArgs() { message = message });
-                chatHistorySender.NewEntry(message);
+                chatHistoryContainer.NewEntry(message);
 
                 _ = Task.Run(() => messagesTracer.TraceConnectionMessages(clientConnection, currentUsername, false));
             }
         }
+
+        //TODO::
+        private void Reconnect()
+        {
+
+        }
+
+        #endregion
+
+        #region Message sending
 
         public void SendMessage(string message)
         {
@@ -263,11 +282,34 @@ namespace Chat.Connections {
 
         }
 
-        //TODO::
-        private void Reconnect()
-        {
+        #endregion
 
+        #region Chat history updating
+
+        private async Task TryUpdateChatHistory()
+        {
+            var userIndex = connectedUserEntries.FindIndex(x => !x.IsLocalUser());
+            int tries = 1;
+            while (userIndex.Equals(-1))
+            {
+                await Task.Delay(350);
+                userIndex = connectedUserEntries.FindIndex(x => !x.IsLocalUser());
+
+                if (tries > MaxUpdateChatHistoryTries)
+                    return;
+            }
+
+            var chatHistory = chatHistoryReceiver.GetChatHistory(connectedUserEntries[userIndex].ipAddress)?.ToList();
+
+            OnChatHistoryUpdated?.Invoke(this, new ChatHistoryUpdatedEventArgs()
+            {
+                chatHistoryEntries = chatHistory
+            });
+
+            chatHistoryContainer.ChatHistory = chatHistory;
         }
+
+        #endregion
 
         #region Messages tracer events
 
@@ -275,7 +317,7 @@ namespace Chat.Connections {
         {
             var message = $"User {e.username} disconnected.";
             OnEventHappened?.Invoke(this, new LogEventArgs() { message = message });
-            chatHistorySender.NewEntry(message);
+            chatHistoryContainer.NewEntry(message);
 
             connectedUserEntries.RemoveAll(x =>
                 x.ipAddress.ToString().Equals(e.address.ToString())
@@ -285,7 +327,7 @@ namespace Chat.Connections {
         private void MessagesTracer_OnMessageReceived(object sender, MessageReceivedEventArgs e)
         {
             OnEventHappened?.Invoke(null, new LogEventArgs() { message = e.normalizedMessage });
-            chatHistorySender.NewEntry(e.normalizedMessage);
+            chatHistoryContainer.NewEntry(e.normalizedMessage);
         }
 
         #endregion

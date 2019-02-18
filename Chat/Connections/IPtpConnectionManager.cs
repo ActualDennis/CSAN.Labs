@@ -1,4 +1,6 @@
-﻿using System;
+﻿using Chat.Events;
+using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 
 namespace Chat.Connections {
@@ -10,5 +12,7 @@ namespace Chat.Connections {
         event EventHandler<LogEventArgs> OnLocalEventHappened;
 
         event EventHandler<LogEventArgs> OnEventHappened;
+
+        event EventHandler<ChatHistoryUpdatedEventArgs> OnChatHistoryUpdated;
     }
 }

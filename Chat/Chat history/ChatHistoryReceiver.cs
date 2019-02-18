@@ -9,10 +9,10 @@ namespace Chat.Chat_history {
     public class ChatHistoryReceiver : IChatHistoryReceiver {
         public ChatHistoryReceiver()
         {
-            chatHistoryConnection = new TcpClient();
+            ReceiveConnection = new TcpClient();
         }
 
-        private TcpClient chatHistoryConnection { get; set; }
+        private TcpClient ReceiveConnection { get; set; }
 
         public IEnumerable<string> GetChatHistory(IPAddress source)
         {
@@ -20,20 +20,22 @@ namespace Chat.Chat_history {
             {
                 var returnList = new List<string>();
 
-                chatHistoryConnection.Connect(new IPEndPoint(source, DefaultValues.TcpChatHistoryPort));
+                ReceiveConnection.Connect(new IPEndPoint(source, DefaultValues.TcpChatHistoryPort));
 
-                var connectionStream = chatHistoryConnection.GetStream();
+                var connectionStream = ReceiveConnection.GetStream();
                 var reader = new StreamReader(connectionStream);
-                while (connectionStream.DataAvailable)
+                while (true)
                 {
                     var entry = reader.ReadLine();
+
                     if (!string.IsNullOrEmpty(entry))
                     {
                         returnList.Add(entry);
                     }
+                    else
+                        return returnList;
                 }
 
-                return returnList;
             }
             catch { return null; }
         } 
