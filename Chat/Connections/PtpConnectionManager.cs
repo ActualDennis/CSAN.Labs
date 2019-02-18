@@ -74,6 +74,8 @@ namespace Chat.Connections {
 
         public IChatHistoryReceiver chatHistoryReceiver { get; set; }
 
+        private const int MaxWaitTries = 10;
+
         public async Task Start()
         {
             await OnConnected();
@@ -226,7 +228,7 @@ namespace Chat.Connections {
                     .username;
 
                 //wait until the user information is updated
-
+                int tries = 0;
                 while (currentUsername == "Unknown")
                 {
                     await Task.Delay(150);
@@ -235,6 +237,11 @@ namespace Chat.Connections {
                     x =>
                     x.ipAddress.ToString() == address.ToString())
                     .username;
+
+                    ++tries;
+
+                    if (tries > MaxWaitTries)
+                        break;
                 }
 
                 var message = $"User {currentUsername} connected.";

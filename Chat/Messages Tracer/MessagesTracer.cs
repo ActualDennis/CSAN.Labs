@@ -57,7 +57,7 @@ namespace Chat.Messages_Tracer {
 
         private string GetNormalizedMessage(string username, string message)
         {
-            return $"{DateTime.Now.ToString("HH:MM")} " +
+            return $"{DateTime.Now.ToString("HH:mm")} " +
                             $"{username} : " +
                             $"{message}";
         }
