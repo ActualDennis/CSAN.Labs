@@ -43,6 +43,9 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="ArgsInfo.cs" />
+    <Compile Include="ArgsResolver.cs" />
+    <Compile Include="ArpHelper.cs" />
     <Compile Include="NamesResolver.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />

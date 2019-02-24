@@ -1,5 +1,7 @@
-﻿using PcapDotNet.Core;
+﻿using PcapDotNet.Base;
+using PcapDotNet.Core;
 using PcapDotNet.Packets;
+using PcapDotNet.Packets.Arp;
 using PcapDotNet.Packets.Ethernet;
 using PcapDotNet.Packets.Icmp;
 using PcapDotNet.Packets.IpV4;
@@ -9,21 +11,23 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Net;
+using System.Net.NetworkInformation;
 using System.Text;
 using System.Threading.Tasks;
+using traceroute_pcap_;
 
 namespace traceroute_pcap {
     class Program {
         static void Main(string[] args)
         {
-            if (args.Length == 0 || args.Length > 2)
+            ArgsInfo argsInfo = ArgsResolver.Resolve(args); //ArgsResolver.Resolve(new string[] { "192.168.0.1", "google.com" });
+
+            if (argsInfo == null)
             {
                 Usage();
                 return;
             }
 
-            var destinationIpAddress = NamesResolver.Resolve(args[0]);
-            var IsReversedLookupEnabled = args.FirstOrDefault(x => x.ToUpper() == "-ENABLEREVLOOKUP") != null; 
             const int _maxTries = 3;
 
             // Retrieve the device list from the local machine
@@ -61,6 +65,22 @@ namespace traceroute_pcap {
             // Take the selected adapter
             PacketDevice selectedCaptureDevice = allDevices[deviceIndex - 1];
 
+            string[] ipV4Address = selectedCaptureDevice.Addresses[1].ToString().Split(' ');
+
+            var localIpAddress = ipV4Address[2];
+
+            string routerMac = ArpHelper.GetRouterMacAddress(localIpAddress, argsInfo.RouterIP, selectedCaptureDevice, _maxTries);
+
+            string thisMachineMac = ArpHelper.GetMacAddress();
+
+            if (routerMac == null)
+            {
+                Console.WriteLine("Cannot identify router's MAC.");
+                Console.ReadLine();
+                return;
+            }
+
+
             using (PacketCommunicator sendCommunicator =
                 selectedCaptureDevice.Open(65536,
                 PacketDeviceOpenAttributes.None,
@@ -69,18 +89,20 @@ namespace traceroute_pcap {
                 selectedCaptureDevice.Open(65536, // portion of the packet to capture
                                                  // 65536 guarantees that the whole packet will be captured on all the link layers
                                          PacketDeviceOpenAttributes.None,
-                                         500)) // read timeout
+                                         1500)) // read timeout
             {
                 var timeStampSent =  new DateTime();
-                inputCommunicator.SetFilter("ip proto \\icmp and dst host \\192.168.0.104");
+                inputCommunicator.SetFilter($"ip proto \\icmp and dst host \\{localIpAddress}");
                 bool IsCompleted = false;
                 byte maxErrorPackets = 10;
+                Console.WriteLine($"Tracing to {argsInfo.Destination.ToString()}");
+                Console.WriteLine();
 
                 for(byte ttl = 1; ttl < 20 && !IsCompleted; ++ttl)
                 {
                     for (int trie = 0; trie < _maxTries; ++trie)
                     {                     
-                        sendCommunicator.SendPacket(BuildIcmpPacket(destinationIpAddress.ToString(), ttl));
+                        sendCommunicator.SendPacket(BuildIcmpPacket(argsInfo.Destination.ToString(), thisMachineMac, routerMac, ttl, localIpAddress));
      
                         inputCommunicator.ReceivePacket(out var receivedPacket);
 
@@ -101,22 +123,19 @@ namespace traceroute_pcap {
 
                             timeStampSent = DateTime.UtcNow;
 
-                            sendCommunicator.SendPacket(BuildIcmpPacket(ipDatagram.Source.ToString(), 64));
-
-                            byte errorPacketsCounter = 0;
+                            sendCommunicator.SendPacket(BuildIcmpPacket(ipDatagram.Source.ToString(), thisMachineMac, routerMac, 64, localIpAddress));
 
                             //server may send some random packets, which are not echo replies,
                             //wait for {maxErrorPackets} packets for our packet to arrive
 
-                            while (errorPacketsCounter < maxErrorPackets)
+                            byte errorPacketsCounter = 0;
+
+                            for (; errorPacketsCounter < maxErrorPackets; ++errorPacketsCounter)
                             {
                                 inputCommunicator.ReceivePacket(out var echoPacket);
 
                                 if (echoPacket == null)
-                                {
-                                    ++errorPacketsCounter;
                                     continue;
-                                }
 
                                 var echoDgram = echoPacket.Ethernet.Ip.Icmp;
 
@@ -125,8 +144,6 @@ namespace traceroute_pcap {
                                     Console.Write($" {(echoPacket.Timestamp - timeStampSent).Milliseconds} ms  ");
                                     break;
                                 }
-                                else
-                                    ++errorPacketsCounter;
                             }
 
                             if (errorPacketsCounter == maxErrorPackets)
@@ -137,14 +154,19 @@ namespace traceroute_pcap {
                             if (trie == _maxTries - 1)
                             {
 
-                                Console.Write($" {ipDatagram.Source.ToString()} : ");
+                                Console.Write($" {ipDatagram.Source.ToString()} ");
 
-                                if (IsReversedLookupEnabled)
+                                if (argsInfo.IsReversedLookupEnabled)
                                 {
-                                    Console.Write($"{(NamesResolver.GetHostNameByIp(IPAddress.Parse(ipDatagram.Source.ToString()))) ?? string.Empty} ");
+                                    try
+                                    {
+                                        var hostName = NamesResolver.GetHostNameByIp(IPAddress.Parse(ipDatagram.Source.ToString()));
+                                        Console.Write(hostName);
+                                    }
+                                    catch { }
                                 }
 
-                                if (ipDatagram.Source.ToString() == destinationIpAddress.ToString())
+                                if (ipDatagram.Source.ToString() == argsInfo.Destination.ToString())
                                 {
                                     Console.WriteLine();
                                     Console.WriteLine();
@@ -158,6 +180,7 @@ namespace traceroute_pcap {
                     }
 
                     Console.WriteLine();
+                    Console.WriteLine();
                 }
 
                 Console.ReadLine();
@@ -166,21 +189,21 @@ namespace traceroute_pcap {
 
         }
 
-        static Packet BuildIcmpPacket(string ipDestination, byte ttl)
+        static Packet BuildIcmpPacket(string ipDestination, string thisMachineMac, string routerMac, byte ttl, string source)
         {
 
             EthernetLayer ethernetLayer =
                  new EthernetLayer
                  {
-                     Source = new MacAddress("F4:96:34:37:4D:D0"),
-                     Destination = new MacAddress("60:E3:27:B1:C8:4C"),
+                     Source = new MacAddress(thisMachineMac),
+                     Destination = new MacAddress(routerMac),
                      EtherType = EthernetType.None, // Will be filled automatically.
                 };
 
             IpV4Layer ipV4Layer =
                 new IpV4Layer
                 {
-                    Source = new IpV4Address("192.168.0.104"),
+                    Source = new IpV4Address(source),
                     CurrentDestination = new IpV4Address(ipDestination),
                     Fragmentation = IpV4Fragmentation.None,
                     HeaderChecksum = null, // Will be filled automatically.
@@ -207,8 +230,8 @@ namespace traceroute_pcap {
         private static void Usage()
         {
             Console.WriteLine("Usage:");
-            Console.WriteLine("<host name or its IP address> [-EnableRevLookUp]");
-            Console.WriteLine("-EnableRevLookUp - enables reverse dns requests.");
+            Console.WriteLine("<your router local address> <host name or its IP address of endpoint> [-ER]");
+            Console.WriteLine("-[E]nable [R]everse LookUp - enables reverse dns requests.");
             Console.ReadLine();
         }
     }
