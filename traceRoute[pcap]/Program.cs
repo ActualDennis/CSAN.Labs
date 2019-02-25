@@ -20,7 +20,7 @@ namespace traceroute_pcap {
     class Program {
         static void Main(string[] args)
         {
-            ArgsInfo argsInfo = ArgsResolver.Resolve(args); //ArgsResolver.Resolve(new string[] { "192.168.0.1", "google.com" });
+            ArgsInfo argsInfo = ArgsResolver.Resolve(args);
 
             if (argsInfo == null)
             {
@@ -69,7 +69,7 @@ namespace traceroute_pcap {
 
             var localIpAddress = ipV4Address[2];
 
-            string routerMac = ArpHelper.GetRouterMacAddress(localIpAddress, argsInfo.RouterIP, selectedCaptureDevice, _maxTries);
+            string routerMac = ArpHelper.GetRouterMacAddress(localIpAddress, ArpHelper.GetRouterIp().ToString(), selectedCaptureDevice, _maxTries);
 
             string thisMachineMac = ArpHelper.GetMacAddress();
 
@@ -84,7 +84,7 @@ namespace traceroute_pcap {
             using (PacketCommunicator sendCommunicator =
                 selectedCaptureDevice.Open(65536,
                 PacketDeviceOpenAttributes.None,
-                1000))
+                1500))
             using (PacketCommunicator inputCommunicator =
                 selectedCaptureDevice.Open(65536, // portion of the packet to capture
                                                  // 65536 guarantees that the whole packet will be captured on all the link layers
@@ -94,21 +94,26 @@ namespace traceroute_pcap {
                 var timeStampSent =  new DateTime();
                 inputCommunicator.SetFilter($"ip proto \\icmp and dst host \\{localIpAddress}");
                 bool IsCompleted = false;
-                byte maxErrorPackets = 10;
+                byte maxErrorPackets = 3;
+
                 Console.WriteLine($"Tracing to {argsInfo.Destination.ToString()}");
                 Console.WriteLine();
 
-                for(byte ttl = 1; ttl < 20 && !IsCompleted; ++ttl)
+                bool IsAnyResponseReceived = false;
+                var receivedPacket = new Packet(new byte[1], new DateTime(), null);
+                var lastCapturedSource = string.Empty;
+
+                for (byte ttl = 1; ttl < 20 && !IsCompleted; ++ttl)
                 {
                     for (int trie = 0; trie < _maxTries; ++trie)
                     {                     
                         sendCommunicator.SendPacket(BuildIcmpPacket(argsInfo.Destination.ToString(), thisMachineMac, routerMac, ttl, localIpAddress));
      
-                        inputCommunicator.ReceivePacket(out var receivedPacket);
+                        inputCommunicator.ReceivePacket(out receivedPacket);
 
                         if (receivedPacket == null)
                         {
-                            Console.Write($" Timed out.");
+                            Console.Write($"   *   ");
                             continue;
                         }
 
@@ -142,6 +147,8 @@ namespace traceroute_pcap {
                                 if (echoDgram.MessageType == IcmpMessageType.EchoReply)
                                 {
                                     Console.Write($" {(echoPacket.Timestamp - timeStampSent).Milliseconds} ms  ");
+                                    IsAnyResponseReceived = true;
+                                    lastCapturedSource = ipDatagram.Source.ToString();
                                     break;
                                 }
                             }
@@ -149,35 +156,36 @@ namespace traceroute_pcap {
                             if (errorPacketsCounter == maxErrorPackets)
                                 Console.Write("    *    ");
 
-                            //on the third ping, output ip address [and hostname] of the source.
-
-                            if (trie == _maxTries - 1)
-                            {
-
-                                Console.Write($" {ipDatagram.Source.ToString()} ");
-
-                                if (argsInfo.IsReversedLookupEnabled)
-                                {
-                                    try
-                                    {
-                                        var hostName = NamesResolver.GetHostNameByIp(IPAddress.Parse(ipDatagram.Source.ToString()));
-                                        Console.Write(hostName);
-                                    }
-                                    catch { }
-                                }
-
-                                if (ipDatagram.Source.ToString() == argsInfo.Destination.ToString())
-                                {
-                                    Console.WriteLine();
-                                    Console.WriteLine();
-                                    Console.WriteLine("Trace completed.");
-                                    IsCompleted = true;
-                                    break;
-                                }
-                            }
                         }
                 
                     }
+
+                    if (IsAnyResponseReceived)
+                    {
+                        Console.Write($" {lastCapturedSource} ");
+
+                        if (argsInfo.IsReversedLookupEnabled)
+                        {
+                            try
+                            {
+                                var hostName = NamesResolver.GetHostNameByIp(IPAddress.Parse(lastCapturedSource));
+                                Console.Write(hostName);
+                            }
+                            catch { }
+                        }
+
+                        if (lastCapturedSource == argsInfo.Destination.ToString())
+                        {
+                            Console.WriteLine();
+                            Console.WriteLine();
+                            Console.WriteLine("Trace completed.");
+                            IsCompleted = true;
+                        }
+                    }
+                    else
+                        Console.Write("Server timed out.");
+
+                    IsAnyResponseReceived = false;
 
                     Console.WriteLine();
                     Console.WriteLine();
@@ -230,7 +238,7 @@ namespace traceroute_pcap {
         private static void Usage()
         {
             Console.WriteLine("Usage:");
-            Console.WriteLine("<your router local address> <host name or its IP address of endpoint> [-ER]");
+            Console.WriteLine("<host name or IP address of endpoint> [-ER]");
             Console.WriteLine("-[E]nable [R]everse LookUp - enables reverse dns requests.");
             Console.ReadLine();
         }

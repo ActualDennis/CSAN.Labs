@@ -13,9 +13,8 @@ namespace traceroute_pcap_ {
             {
                 return new ArgsInfo()
                 {
-                    Destination = NamesResolver.Resolve(args[1]),
-                    IsReversedLookupEnabled = args.FirstOrDefault(x => x.ToUpper() == "-ER") != null,
-                    RouterIP = NamesResolver.Resolve(args[0]).ToString()
+                    Destination = NamesResolver.Resolve(args[0]),
+                    IsReversedLookupEnabled = args.FirstOrDefault(x => x.ToUpper() == "-ER") != null
                 };
 
             }

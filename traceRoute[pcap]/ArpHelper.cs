@@ -29,6 +29,19 @@ namespace traceroute_pcap_ {
             return macAddresses;
         }
 
+        public static IPAddress GetRouterIp()
+        {
+            foreach (NetworkInterface nic in NetworkInterface.GetAllNetworkInterfaces())
+            {
+                if (nic.OperationalStatus == OperationalStatus.Up)
+                {
+                    return nic.GetIPProperties().DhcpServerAddresses[0];
+                }
+            }
+
+            return null;
+        }
+
         public static string GetRouterMacAddress(string thisMachineLocalIp, string routerLocalIp, PacketDevice captureDevice, int maxTries)
         {
             using (PacketCommunicator Communicator =

@@ -8,7 +8,6 @@ using System.Threading.Tasks;
 namespace traceroute_pcap_ {
     public class ArgsInfo {
         public IPAddress Destination;
-        public string RouterIP;
         public bool IsReversedLookupEnabled;
     }
 }
