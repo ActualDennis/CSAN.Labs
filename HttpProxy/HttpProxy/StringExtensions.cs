@@ -14,6 +14,9 @@ namespace HttpProxy {
             if (value.Contains("http://"))
                 value = value.Replace("http://", string.Empty);
 
+            if(value.Contains("www."))
+                value = value.Replace("www.", string.Empty);
+
             return value;
         }
 

@@ -26,12 +26,14 @@ namespace HttpProxy.Listener {
         private void Listener_OnNewConnectionReceived(object sender, RequestReceivedEventArgs e)
         {
             string hostname = HttpQueryParser.GetHostName(e.Request);
+            NetworkStream proxyClientStream = e.User.GetStream();
 
             try
             {
                 if (firewall.CheckIfBlocked(hostname))
                 {
-                    Console.WriteLine("This website is blocked.");
+                    //HTTP/1.1 403 This website is blocked by firewall.\r\n\r\n 
+                    e.User.GetStream().Write(Encoding.ASCII.GetBytes("<html><body style=\"padding:0; margin:0;\"><img style=\"padding:0; margin:0; width:100%; height:100%;\" src=\"https://www.hostinger.co.id/tutorial/wp-content/uploads/sites/11/2017/08/what-is-403-forbidden-error-and-how-to-fix-it.jpg\"</body></html>"));
                     return;
                 }
 
@@ -39,22 +41,20 @@ namespace HttpProxy.Listener {
 
                 NetworkStream targetServerStream = targetServer.GetStream();
 
-                NetworkStream proxyClientStream = e.User.GetStream();
-
                 targetServerStream.Write(e.Request);
 
                 var builder = new StringBuilder();
 
-                var responseBuffer = new byte[81920];
+                var responseBuffer = new byte[819200];
 
                 for (int offsetCounter = 0; true; ++offsetCounter)
                 {
-                    var bytesRead = targetServerStream.Read(responseBuffer, 0, 81920);
+                    var bytesRead = targetServerStream.Read(responseBuffer, 0, 819200);
 
                     if (bytesRead.Equals(0))
                         return;
 
-                    proxyClientStream.Write(responseBuffer, 0, 81920);
+                    proxyClientStream.Write(responseBuffer, 0, 819200);
 
                     builder.Append(Encoding.UTF8.GetString(responseBuffer));
 
@@ -72,6 +72,7 @@ namespace HttpProxy.Listener {
                       
             }
             catch { return; }
+            finally { proxyClientStream.Dispose(); }
 
            
         }
