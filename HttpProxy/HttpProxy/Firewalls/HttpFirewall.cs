@@ -14,15 +14,13 @@ namespace HttpProxy {
 
         public override bool CheckIfBlocked(string hostname)
         {
-            bool returnValue = false;
-
             foreach(var item in BlockedHosts)
             {
                 if (item.GetNormalizedWebsitePath().ToUpper() == hostname.GetNormalizedWebsitePath().ToUpper())
                     return true;
             }
 
-            return returnValue;
+            return false;
         }
 
         public override void NewRule(string host)
