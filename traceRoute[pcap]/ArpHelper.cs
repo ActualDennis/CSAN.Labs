@@ -11,7 +11,7 @@ using System.Net.NetworkInformation;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace traceroute_pcap_ {
+namespace traceroute_pcap {
     public static class ArpHelper {
         public static string GetMacAddress()
         {

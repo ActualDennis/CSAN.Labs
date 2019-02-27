@@ -5,7 +5,7 @@ using System.Text;
 using System.Threading.Tasks;
 using traceroute_pcap;
 
-namespace traceroute_pcap_ {
+namespace traceroute_pcap {
     public class ArgsResolver {
         public static ArgsInfo Resolve(string[] args)
         {

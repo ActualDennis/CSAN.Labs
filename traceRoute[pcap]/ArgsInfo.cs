@@ -5,7 +5,7 @@ using System.Net;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace traceroute_pcap_ {
+namespace traceroute_pcap {
     public class ArgsInfo {
         public IPAddress Destination;
         public bool IsReversedLookupEnabled;

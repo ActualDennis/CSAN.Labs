@@ -47,6 +47,9 @@
     <Compile Include="ArgsResolver.cs" />
     <Compile Include="ArpHelper.cs" />
     <Compile Include="NamesResolver.cs" />
+    <Compile Include="PcapDevicesChooser.cs" />
+    <Compile Include="Ping.cs" />
+    <Compile Include="PingReply.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="StringExtensions.cs" />

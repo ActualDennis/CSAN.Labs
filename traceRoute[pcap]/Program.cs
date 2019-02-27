@@ -14,13 +14,14 @@ using System.Net;
 using System.Net.NetworkInformation;
 using System.Text;
 using System.Threading.Tasks;
+using traceroute_pcap;
 using traceroute_pcap_;
 
 namespace traceroute_pcap {
     class Program {
         static void Main(string[] args)
         {
-            ArgsInfo argsInfo = ArgsResolver.Resolve(args);
+            ArgsInfo argsInfo = ArgsResolver.Resolve(new string[] { "google.com", "-er" }); //ArgsResolver.Resolve(args);
 
             if (argsInfo == null)
             {
@@ -30,134 +31,85 @@ namespace traceroute_pcap {
 
             const int _maxTries = 3;
 
-            // Retrieve the device list from the local machine
-            IList<LivePacketDevice> allDevices = LivePacketDevice.AllLocalMachine;
+            PacketDevice selectedCaptureDevice;
 
-            if (allDevices.Count == 0)
+            try
             {
-                Console.WriteLine("No interfaces found! Make sure WinPcap is installed.");
-                return;
+                selectedCaptureDevice = PcapDevicesChooser.PromptPacketDevice();
+
+                if (selectedCaptureDevice == null)
+                    throw new Exception();
             }
+            catch { Console.WriteLine("Couldn't initialize packet device."); Console.ReadLine(); return; }
 
-            // Print the list
-            for (int i = 0; i != allDevices.Count; ++i)
-            {
-                LivePacketDevice device = allDevices[i];
-                Console.Write((i + 1) + ". " + device.Name);
-                if (device.Description != null)
-                    Console.WriteLine(" (" + device.Description + ")");
-                else
-                    Console.WriteLine(" (No description available)");
-            }
+            bool IsCompleted = false;
 
-            int deviceIndex = 0;
-            do
+            Console.WriteLine($"Tracing to {argsInfo.Destination.ToString()}");
+            Console.WriteLine();
+
+            bool IsAnyResponseReceived = false;
+            var lastCapturedSource = string.Empty;
+
+            using (var pingHelper = new Ping(selectedCaptureDevice, 500))
             {
-                Console.WriteLine("Enter the interface number (1-" + allDevices.Count + "):");
-                string deviceIndexString = Console.ReadLine();
-                if (!int.TryParse(deviceIndexString, out deviceIndex) ||
-                    deviceIndex < 1 || deviceIndex > allDevices.Count)
+                try
                 {
-                    deviceIndex = 0;
+                    pingHelper.Initialize();
                 }
-            } while (deviceIndex == 0);
+                catch (SystemException e)
+                {
+                    Console.WriteLine($"Program couldn't start. Reason: {e.Message}");
+                    Console.ReadLine();
+                    return;
+                }
 
-            // Take the selected adapter
-            PacketDevice selectedCaptureDevice = allDevices[deviceIndex - 1];
-
-            string[] ipV4Address = selectedCaptureDevice.Addresses[1].ToString().Split(' ');
-
-            var localIpAddress = ipV4Address[2];
-
-            string routerMac = ArpHelper.GetRouterMacAddress(localIpAddress, ArpHelper.GetRouterIp().ToString(), selectedCaptureDevice, _maxTries);
-
-            string thisMachineMac = ArpHelper.GetMacAddress();
-
-            if (routerMac == null)
-            {
-                Console.WriteLine("Cannot identify router's MAC.");
-                Console.ReadLine();
-                return;
-            }
-
-
-            using (PacketCommunicator sendCommunicator =
-                selectedCaptureDevice.Open(65536,
-                PacketDeviceOpenAttributes.None,
-                1500))
-            using (PacketCommunicator inputCommunicator =
-                selectedCaptureDevice.Open(65536, // portion of the packet to capture
-                                                 // 65536 guarantees that the whole packet will be captured on all the link layers
-                                         PacketDeviceOpenAttributes.None,
-                                         1500)) // read timeout
-            {
-                var timeStampSent =  new DateTime();
-                inputCommunicator.SetFilter($"ip proto \\icmp and dst host \\{localIpAddress}");
-                bool IsCompleted = false;
-                byte maxErrorPackets = 3;
-
-                Console.WriteLine($"Tracing to {argsInfo.Destination.ToString()}");
-                Console.WriteLine();
-
-                bool IsAnyResponseReceived = false;
-                var receivedPacket = new Packet(new byte[1], new DateTime(), null);
-                var lastCapturedSource = string.Empty;
+                int trie = 0;
+                int errorPackets = 0;
+                int maxErrorPackets = 10;
 
                 for (byte ttl = 1; ttl < 20 && !IsCompleted; ++ttl)
                 {
-                    for (int trie = 0; trie < _maxTries; ++trie)
-                    {                     
-                        sendCommunicator.SendPacket(BuildIcmpPacket(argsInfo.Destination.ToString(), thisMachineMac, routerMac, ttl, localIpAddress));
-     
-                        inputCommunicator.ReceivePacket(out receivedPacket);
+                    Console.Write($"{ttl}. ");
+                    for (trie = 0; trie < _maxTries; ++trie)
+                    {
+                        var packet = pingHelper.Send(argsInfo.Destination, 10, ttl, true);
 
-                        if (receivedPacket == null)
+                        if (packet == null)
                         {
                             Console.Write($"   *   ");
                             continue;
                         }
 
-                        var ipDatagram = receivedPacket.Ethernet.IpV4;
+                        var ipDatagram = packet.ReplyPacket.IpV4;
 
-                        var icmpDatagram = receivedPacket.Ethernet.Ip.Icmp;
+                        var icmpDatagram = packet.ReplyPacket.Ip.Icmp;
 
                         if (icmpDatagram.MessageType == IcmpMessageType.TimeExceeded || icmpDatagram.MessageType == IcmpMessageType.EchoReply)
                         {
 
-                            //send ping to determine latency
+                            var serverReplyTime = pingHelper.GetServerResponseTime(10, ipDatagram.Source.ToString());
 
-                            timeStampSent = DateTime.UtcNow;
-
-                            sendCommunicator.SendPacket(BuildIcmpPacket(ipDatagram.Source.ToString(), thisMachineMac, routerMac, 64, localIpAddress));
-
-                            //server may send some random packets, which are not echo replies,
-                            //wait for {maxErrorPackets} packets for our packet to arrive
-
-                            byte errorPacketsCounter = 0;
-
-                            for (; errorPacketsCounter < maxErrorPackets; ++errorPacketsCounter)
+                            if (serverReplyTime.Equals(-1))
                             {
-                                inputCommunicator.ReceivePacket(out var echoPacket);
-
-                                if (echoPacket == null)
-                                    continue;
-
-                                var echoDgram = echoPacket.Ethernet.Ip.Icmp;
-
-                                if (echoDgram.MessageType == IcmpMessageType.EchoReply)
-                                {
-                                    Console.Write($" {(echoPacket.Timestamp - timeStampSent).Milliseconds} ms  ");
-                                    IsAnyResponseReceived = true;
-                                    lastCapturedSource = ipDatagram.Source.ToString();
-                                    break;
-                                }
+                                Console.Write($"   *   ");
+                                continue;
                             }
 
-                            if (errorPacketsCounter == maxErrorPackets)
-                                Console.Write("    *    ");
+                            Console.Write($" {serverReplyTime} ms  ");
+                            IsAnyResponseReceived = true;
+                            lastCapturedSource = ipDatagram.Source.ToString();
 
                         }
-                
+                        else
+                        {
+                            ++errorPackets;
+
+                            if (errorPackets > maxErrorPackets)
+                                continue;
+
+                            --trie;
+                        }
+
                     }
 
                     if (IsAnyResponseReceived)
@@ -190,50 +142,14 @@ namespace traceroute_pcap {
                     Console.WriteLine();
                     Console.WriteLine();
                 }
-
-                Console.ReadLine();
-
             }
 
+            Console.ReadLine();
+
+            
+
         }
 
-        static Packet BuildIcmpPacket(string ipDestination, string thisMachineMac, string routerMac, byte ttl, string source)
-        {
-
-            EthernetLayer ethernetLayer =
-                 new EthernetLayer
-                 {
-                     Source = new MacAddress(thisMachineMac),
-                     Destination = new MacAddress(routerMac),
-                     EtherType = EthernetType.None, // Will be filled automatically.
-                };
-
-            IpV4Layer ipV4Layer =
-                new IpV4Layer
-                {
-                    Source = new IpV4Address(source),
-                    CurrentDestination = new IpV4Address(ipDestination),
-                    Fragmentation = IpV4Fragmentation.None,
-                    HeaderChecksum = null, // Will be filled automatically.
-                    Identification = (ushort)(ttl * 2 % 8192),
-                    Options = IpV4Options.None,
-                    Protocol = null, // Will be filled automatically.
-                    Ttl = ttl,
-                    TypeOfService = 0,
-                };
-
-            IcmpEchoLayer icmpLayer =
-                new IcmpEchoLayer
-                {
-                    Checksum = null, // Will be filled automatically.
-                    Identifier = 1,
-                    SequenceNumber = (ushort)(ttl * 2 % 8192),
-                };
-
-            PacketBuilder builder = new PacketBuilder(ethernetLayer, ipV4Layer, icmpLayer);
-
-            return builder.Build(DateTime.Now);
-        }
 
         private static void Usage()
         {
