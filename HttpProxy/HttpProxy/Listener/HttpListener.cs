@@ -44,12 +44,15 @@ namespace HttpProxy.Listener {
             {
                 try
                 {
+                    if (!clientStream.CanRead)
+                        return;
+
                     //connection is closed
                     if (clientStream.Read(buffer).Equals(0))
                         return;
 
                     OnNewRequestReceived?.Invoke(this, new RequestReceivedEventArgs() { User = client, Request = buffer });
-                }
+                } // when clientStream is disposed, exception is thrown.
                 catch { return; }
             }
         }

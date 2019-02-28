@@ -4,11 +4,7 @@ using PcapDotNet.Packets.Ethernet;
 using PcapDotNet.Packets.Icmp;
 using PcapDotNet.Packets.IpV4;
 using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Net;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace traceroute_pcap {
     public class Ping : IDisposable {
@@ -122,7 +118,6 @@ namespace traceroute_pcap {
 
         static Packet BuildIcmpPacket(string ipDestination, string thisMachineMac, string routerMac, byte ttl, string source)
         {
-
             EthernetLayer ethernetLayer =
                  new EthernetLayer
                  {

@@ -1,9 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using traceroute_pcap;
+﻿using System.Linq;
 
 namespace traceroute_pcap {
     public class ArgsResolver {
@@ -14,7 +9,8 @@ namespace traceroute_pcap {
                 return new ArgsInfo()
                 {
                     Destination = NamesResolver.Resolve(args[0]),
-                    IsReversedLookupEnabled = args.FirstOrDefault(x => x.ToUpper() == "-ER") != null
+                    IsReversedLookupEnabled = args.FirstOrDefault(x => x.ToUpper() == "-ER") != null,
+                    HopsCount = int.Parse(args[1]) 
                 };
 
             }

@@ -32,7 +32,7 @@ namespace HttpProxy.Listener {
             {
                 if (firewall.CheckIfBlocked(hostname))
                 {
-                    //HTTP/1.1 403 This website is blocked by firewall.\r\n\r\n 
+                    //send error page
                     e.User.GetStream().Write(Encoding.ASCII.GetBytes("<html><body style=\"padding:0; margin:0;\"><img style=\"padding:0; margin:0; width:100%; height:100%;\" src=\"https://www.hostinger.co.id/tutorial/wp-content/uploads/sites/11/2017/08/what-is-403-forbidden-error-and-how-to-fix-it.jpg\"</body></html>"));
                     return;
                 }
@@ -45,16 +45,18 @@ namespace HttpProxy.Listener {
 
                 var builder = new StringBuilder();
 
-                var responseBuffer = new byte[819200];
+                var responseBuffer = new byte[32];
 
                 for (int offsetCounter = 0; true; ++offsetCounter)
                 {
-                    var bytesRead = targetServerStream.Read(responseBuffer, 0, 819200);
+                    var bytesRead = targetServerStream.Read(responseBuffer, 0, responseBuffer.Length);
+
+                    Console.WriteLine($"Read {bytesRead} from {hostname}.");
 
                     if (bytesRead.Equals(0))
                         return;
 
-                    proxyClientStream.Write(responseBuffer, 0, 819200);
+                    proxyClientStream.Write(responseBuffer, 0, responseBuffer.Length);
 
                     builder.Append(Encoding.UTF8.GetString(responseBuffer));
 
@@ -69,7 +71,7 @@ namespace HttpProxy.Listener {
                         });
                     }
                 }
-                      
+                    
             }
             catch { return; }
             finally { proxyClientStream.Dispose(); }

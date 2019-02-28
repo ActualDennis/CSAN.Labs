@@ -1,27 +1,14 @@
-﻿using PcapDotNet.Base;
-using PcapDotNet.Core;
-using PcapDotNet.Packets;
-using PcapDotNet.Packets.Arp;
-using PcapDotNet.Packets.Ethernet;
+﻿using PcapDotNet.Core;
 using PcapDotNet.Packets.Icmp;
-using PcapDotNet.Packets.IpV4;
 using System;
-using System.Collections.Generic;
-using System.Diagnostics;
-using System.IO;
-using System.Linq;
 using System.Net;
-using System.Net.NetworkInformation;
-using System.Text;
-using System.Threading.Tasks;
-using traceroute_pcap;
 using traceroute_pcap_;
 
 namespace traceroute_pcap {
     class Program {
         static void Main(string[] args)
         {
-            ArgsInfo argsInfo = ArgsResolver.Resolve(new string[] { "google.com", "-er" }); //ArgsResolver.Resolve(args);
+            ArgsInfo argsInfo = ArgsResolver.Resolve(new string[] { "google.by", "30", "-er" }); //ArgsResolver.Resolve(args);
 
             if (argsInfo == null)
             {
@@ -66,8 +53,9 @@ namespace traceroute_pcap {
                 int trie = 0;
                 int errorPackets = 0;
                 int maxErrorPackets = 10;
+                bool isSourceCaptured = false;
 
-                for (byte ttl = 1; ttl < 20 && !IsCompleted; ++ttl)
+                for (byte ttl = 1; ttl < argsInfo.HopsCount && !IsCompleted; ++ttl)
                 {
                     Console.Write($"{ttl}. ");
                     for (trie = 0; trie < _maxTries; ++trie)
@@ -81,6 +69,10 @@ namespace traceroute_pcap {
                         }
 
                         var ipDatagram = packet.ReplyPacket.IpV4;
+
+                        lastCapturedSource = ipDatagram.Source.ToString();
+
+                        isSourceCaptured = true;
 
                         var icmpDatagram = packet.ReplyPacket.Ip.Icmp;
 
@@ -134,8 +126,12 @@ namespace traceroute_pcap {
                             IsCompleted = true;
                         }
                     }
+                    else if (isSourceCaptured)
+                        Console.Write($"{lastCapturedSource} didn't reply to ping request.");
                     else
-                        Console.Write("Server timed out.");
+                        Console.Write("No response was received.");
+
+                    isSourceCaptured = false;
 
                     IsAnyResponseReceived = false;
 
@@ -154,7 +150,7 @@ namespace traceroute_pcap {
         private static void Usage()
         {
             Console.WriteLine("Usage:");
-            Console.WriteLine("<host name or IP address of endpoint> [-ER]");
+            Console.WriteLine("<host name or IP address of endpoint> <hops count> [-ER]");
             Console.WriteLine("-[E]nable [R]everse LookUp - enables reverse dns requests.");
             Console.ReadLine();
         }

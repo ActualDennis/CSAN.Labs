@@ -4,12 +4,9 @@ using PcapDotNet.Packets;
 using PcapDotNet.Packets.Arp;
 using PcapDotNet.Packets.Ethernet;
 using System;
-using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Net.NetworkInformation;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace traceroute_pcap {
     public static class ArpHelper {
