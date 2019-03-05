@@ -222,7 +222,6 @@ namespace Chat.Connections {
 
                 var address = clientConnection.Client.GetRemoteEndPointIpAddress(false);
 
-
                 connectedUserEntries.Add(new PtpUserEntry()
                 {
                     chatConnection = clientConnection,
@@ -231,34 +230,42 @@ namespace Chat.Connections {
                     username = "Unknown"
                 });
 
-                string currentUsername = connectedUserEntries.Find(
-                    x =>
-                    x.ipAddress.ToString() == address.ToString())
-                    .username;
+                _ = Task.Run(() => ListenUntilUsernameReceived(address, clientConnection));
 
-                //wait until the user information is updated
-                int tries = 0;
-                while (currentUsername == "Unknown")
-                {
-                    await Task.Delay(150);
-
-                    currentUsername = connectedUserEntries.Find(
-                    x =>
-                    x.ipAddress.ToString() == address.ToString())
-                    .username;
-
-                    ++tries;
-
-                    if (tries > MaxWaitTries)
-                        break;
-                }
-
-                var message = $"User {currentUsername} connected.";
-                OnEventHappened?.Invoke(this, new LogEventArgs() { message = message });
-                chatHistoryContainer.NewEntry(message);
-
-                _ = Task.Run(() => messagesTracer.TraceConnectionMessages(clientConnection, currentUsername, false));
             }
+        }
+
+        private async Task ListenUntilUsernameReceived(IPAddress address, TcpClient connection)
+        {
+            int tries = 0;
+
+            string currentUsername = connectedUserEntries.Find(
+                    x =>
+                    x.ipAddress.ToString() == address.ToString())
+                    .username;
+
+            while (currentUsername == "Unknown")
+            {
+                await Task.Delay(150);
+
+                currentUsername = connectedUserEntries.Find(
+                x =>
+                x.ipAddress.ToString() == address.ToString())
+                .username;
+
+                ++tries;
+
+                if (tries > MaxWaitTries)
+                    break;
+            }
+            //if user for some reason didn't send the packet to identify himself,
+            //mark him as 'unknown' and still chat with him.
+
+            var message = $"User {currentUsername} connected.";
+            OnEventHappened?.Invoke(this, new LogEventArgs() { message = message });
+            chatHistoryContainer.NewEntry(message);
+
+            _ = Task.Run(() => messagesTracer.TraceConnectionMessages(connection, currentUsername, false));
         }
 
         //TODO::
