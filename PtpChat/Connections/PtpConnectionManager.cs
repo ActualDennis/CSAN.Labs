@@ -99,8 +99,8 @@ namespace Chat.Connections {
             _ = Task.Run(() => AcceptChatConnections());
 
             await userInfoBroadcaster.SendAsync(
-                Encoding.ASCII.GetBytes(clientName),
-                clientName.Length,
+                Encoding.ASCII.GetBytes(PtpChatCommands.ClientNeedsConnection + " " + clientName),
+                (PtpChatCommands.ClientNeedsConnection + " " + clientName).Length,
                 DefaultOnConnectedEndpoint);
 
             OnLocalEventHappened?.Invoke(this, new LogEventArgs() { message = "Sent \"OnConnected\" broadcast message ." });
@@ -123,9 +123,9 @@ namespace Chat.Connections {
 
                 //user already connected to us and just wants us to know his name.
 
-                if (receivedMessage.StartsWith("USR "))
+                if (receivedMessage.StartsWith(PtpChatCommands.UserIdentification))
                 {
-                    var username = receivedMessage.Replace("USR ", string.Empty);
+                    var username = receivedMessage.Replace(PtpChatCommands.UserIdentification + " ", string.Empty);
 
                     int index = 0;
                     do
@@ -138,30 +138,32 @@ namespace Chat.Connections {
 
                     continue;
                 }
-
-                var userEntryIndex = connectedUserEntries.FindIndex(x =>
-                x.ipAddress.ToString().Equals(clientEp.Address.ToString())
-                && x.username != "Unknown");
-
-                //Add new client if we don't know anything about him
-
-                if (userEntryIndex.Equals(-1))
+                else if(receivedMessage.StartsWith(PtpChatCommands.ClientNeedsConnection))
                 {
-                    connectedUserEntries.Add(new PtpUserEntry()
-                    {
-                        chatConnection = null,
-                        username = receivedMessage,
-                        ipAddress = clientEp.Address
-                    });
-
-                    userEntryIndex = connectedUserEntries.FindIndex(x =>
+                    var userEntryIndex = connectedUserEntries.FindIndex(x =>
                     x.ipAddress.ToString().Equals(clientEp.Address.ToString())
-                    && x.username == receivedMessage);
+                    && x.username != "Unknown");
+
+                    //Add new client if we don't know anything about him
+
+                    if (userEntryIndex.Equals(-1))
+                    {
+                        var username = receivedMessage.Replace(PtpChatCommands.ClientNeedsConnection + " ", string.Empty);
+
+                        connectedUserEntries.Add(new PtpUserEntry()
+                        {
+                            chatConnection = null,
+                            username = username,
+                            ipAddress = clientEp.Address
+                        });
+
+                        userEntryIndex = connectedUserEntries.FindIndex(x =>
+                        x.ipAddress.ToString().Equals(clientEp.Address.ToString())
+                        && x.username == username);
+                    }
+
+                    await InitiateTcpConnection(userEntryIndex);
                 }
-
-                connectedUserEntries[userEntryIndex].username = receivedMessage;
-
-                await InitiateTcpConnection(userEntryIndex);
             }
 
         }
@@ -199,7 +201,7 @@ namespace Chat.Connections {
             //send who we are to the user, 
             //add "header" to distinguish between usual OnConnected messages.
 
-            var userInfoBytes = Encoding.ASCII.GetBytes("USR " + clientName);
+            var userInfoBytes = Encoding.ASCII.GetBytes(PtpChatCommands.UserIdentification + " " + clientName);
 
             await userInfoBroadcaster.SendAsync(
                 userInfoBytes,
