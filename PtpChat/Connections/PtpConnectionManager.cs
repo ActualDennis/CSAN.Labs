@@ -79,14 +79,16 @@ namespace Chat.Connections {
 
         private const int MaxWaitTries = 10;
 
-        private const int MaxUpdateChatHistoryTries = 10; 
+        private const int MaxUpdateChatHistoryTries = 10;
+
+        private bool IsChatHistoryUpdated { get; set; } = false;
 
         public async Task Start()
         {
             await OnConnected();
             _ = Task.Run(() => UdpPacketsListener());
             _ = Task.Run(() => chatHistoryContainer.StartListening());
-            _ = Task.Run(() => TryUpdateChatHistory());
+          //  _ = Task.Run(() => TryUpdateChatHistory());
         }
 
         #region Connection stuff
@@ -231,7 +233,6 @@ namespace Chat.Connections {
                 });
 
                 _ = Task.Run(() => ListenUntilUsernameReceived(address, clientConnection));
-
             }
         }
 
@@ -266,6 +267,8 @@ namespace Chat.Connections {
             chatHistoryContainer.NewEntry(message);
 
             _ = Task.Run(() => messagesTracer.TraceConnectionMessages(connection, currentUsername, false));
+
+            await TryUpdateChatHistory();
         }
 
         //TODO::
@@ -295,15 +298,14 @@ namespace Chat.Connections {
 
         private async Task TryUpdateChatHistory()
         {
-            var userIndex = connectedUserEntries.FindIndex(x => !x.IsLocalUser());
-            int tries = 1;
-            while (userIndex.Equals(-1))
-            {
-                await Task.Delay(350);
-                userIndex = connectedUserEntries.FindIndex(x => !x.IsLocalUser());
+            if (IsChatHistoryUpdated)
+                return;
 
-                if (tries > MaxUpdateChatHistoryTries)
-                    return;
+            var userIndex = connectedUserEntries.FindIndex(x => !x.IsLocalUser());
+
+            if (userIndex.Equals(-1))
+            {
+                return;
             }
 
             var chatHistory = chatHistoryReceiver.GetChatHistory(connectedUserEntries[userIndex].ipAddress)?.ToList();
@@ -314,6 +316,8 @@ namespace Chat.Connections {
             });
 
             chatHistoryContainer.ChatHistory = chatHistory;
+
+            IsChatHistoryUpdated = true;
         }
 
         #endregion
