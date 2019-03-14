@@ -79,8 +79,6 @@ namespace Chat.Connections {
 
         private const int MaxWaitTries = 10;
 
-        private const int MaxUpdateChatHistoryTries = 10;
-
         private bool IsChatHistoryUpdated { get; set; } = false;
 
         public async Task Start()
@@ -88,7 +86,6 @@ namespace Chat.Connections {
             await OnConnected();
             _ = Task.Run(() => UdpPacketsListener());
             _ = Task.Run(() => chatHistoryContainer.StartListening());
-          //  _ = Task.Run(() => TryUpdateChatHistory());
         }
 
         #region Connection stuff
