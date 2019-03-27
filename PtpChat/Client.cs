@@ -60,9 +60,12 @@ namespace Chat {
 
         private IPtpConnectionManager connectionManager { get; set; }
 
-        public void SendMessage(string message)
+        public async Task SendMessage(string message)
         {
-            connectionManager.SendMessage(message);
+            if (string.IsNullOrWhiteSpace(message))
+                return;
+
+            await connectionManager.SendMessage(message);
         }
 
         private void ConnectionManager_OnLocalEventHappened(object sender, LogEventArgs e)

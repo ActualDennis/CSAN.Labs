@@ -7,6 +7,7 @@ using System.IO;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
+using System.Threading.Tasks;
 
 namespace HttpProxy.Listener {
     public class HttpClient {
@@ -14,7 +15,7 @@ namespace HttpProxy.Listener {
         {
             this.firewall = firewall;
             this.listener = listener;
-            this.listener.OnNewRequestReceived += Listener_OnNewConnectionReceived;
+            this.listener.OnNewRequestReceived += async (s,e) => await Listener_OnNewConnectionReceived(s,e);
             this.logger = logger;
         }
 
@@ -23,7 +24,7 @@ namespace HttpProxy.Listener {
 
         private Logger<HttpRequestEntry> logger { get; set; }
 
-        private void Listener_OnNewConnectionReceived(object sender, RequestReceivedEventArgs e)
+        private async Task Listener_OnNewConnectionReceived(object sender, RequestReceivedEventArgs e)
         {
             string hostname = HttpQueryParser.GetHostName(e.Request);
             NetworkStream proxyClientStream = e.User.GetStream();
@@ -45,18 +46,18 @@ namespace HttpProxy.Listener {
 
                 var builder = new StringBuilder();
 
-                var responseBuffer = new byte[32];
+                var responseBuffer = new byte[64];
 
                 for (int offsetCounter = 0; true; ++offsetCounter)
                 {
-                    var bytesRead = targetServerStream.Read(responseBuffer, 0, responseBuffer.Length);
+                    var bytesRead = await targetServerStream.ReadAsync(responseBuffer, 0, responseBuffer.Length);
 
                     Console.WriteLine($"Read {bytesRead} from {hostname}.");
 
                     if (bytesRead.Equals(0))
                         return;
 
-                    proxyClientStream.Write(responseBuffer, 0, responseBuffer.Length);
+                    await proxyClientStream.WriteAsync(responseBuffer, 0, responseBuffer.Length);
 
                     builder.Append(Encoding.UTF8.GetString(responseBuffer));
 

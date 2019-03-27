@@ -1,7 +1,6 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Settings>
   <BlockedWebsites>
-    <Website>example.org</Website>
     <Website>example.com</Website>
     <Website>http://www.stealmylogin.com</Website>
   </BlockedWebsites>

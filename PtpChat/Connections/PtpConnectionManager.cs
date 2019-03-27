@@ -58,7 +58,7 @@ namespace Chat.Connections {
         public event EventHandler<LogEventArgs> OnEventHappened;
 
         public event EventHandler<ChatHistoryUpdatedEventArgs> OnChatHistoryUpdated;
-         
+
         private List<PtpUserEntry> connectedUserEntries { get; set; }
 
         private TcpListener messagesListener { get; set; }
@@ -121,6 +121,8 @@ namespace Chat.Connections {
                 var receivedBytes = userInfoReceiver.Receive(ref clientEp);
                 var receivedMessage = Encoding.ASCII.GetString(receivedBytes);
 
+                Console.WriteLine(receivedMessage);
+
                 //user already connected to us and just wants us to know his name.
 
                 if (receivedMessage.StartsWith(PtpChatCommands.UserIdentification))
@@ -138,7 +140,7 @@ namespace Chat.Connections {
 
                     continue;
                 }
-                else if(receivedMessage.StartsWith(PtpChatCommands.ClientNeedsConnection))
+                else if (receivedMessage.StartsWith(PtpChatCommands.ClientNeedsConnection))
                 {
                     var userEntryIndex = connectedUserEntries.FindIndex(x =>
                     x.ipAddress.ToString().Equals(clientEp.Address.ToString())
@@ -190,8 +192,7 @@ namespace Chat.Connections {
             _ = Task.Run(() => messagesTracer.TraceConnectionMessages(
                 newConnection,
                 connectedUserEntries[userEntryIndex].username,
-                newConnection.Client.GetRemoteEndPointIpAddress()
-                == newConnection.Client.GetLocalEndPointIpAddress()));
+                newConnection.Client.GetRemoteEndPointIpAddress() == newConnection.Client.GetLocalEndPointIpAddress()));
 
             OnLocalEventHappened.Invoke(this, new LogEventArgs()
             {
@@ -280,14 +281,14 @@ namespace Chat.Connections {
 
         #region Message sending
 
-        public void SendMessage(string message)
+        public async Task SendMessage(string message)
         {
-            connectedUserEntries.ForEach(async client =>
+            await Task.WhenAll(connectedUserEntries.Select(client =>
             {
                 var clientStream = client.chatConnection.GetStream();
                 var messageBytes = Encoding.ASCII.GetBytes(message + "\r\n");
-                await clientStream.WriteAsync(messageBytes, 0, messageBytes.Length);
-            });
+                return clientStream.WriteAsync(messageBytes, 0, messageBytes.Length);
+            }));
 
         }
 

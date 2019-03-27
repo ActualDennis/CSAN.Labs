@@ -13,8 +13,6 @@ namespace http_filetransfer {
 
         public HttpRequestsHandler(DefaultFileSystemProvider fileSystemProvider)
         {
-            //this.listener = listener;
-            //this.listener.OnNewRequestReceived += Listener_OnNewRequestReceived;
             this.fileSystemProvider = fileSystemProvider;
         }
 
@@ -22,8 +20,6 @@ namespace http_filetransfer {
 
         public void Start()
         {
-            //Task.Run(() => listener.Listen());
-
             var listener = new HttpListener();
             listener.Prefixes.Add("http://*:80/");
             listener.Start();
@@ -52,10 +48,12 @@ namespace http_filetransfer {
                                 if (copyfromHeader != null)
                                 {
                                     fileSystemProvider.Move(fullPath, DefaultValues.ServerBaseDirectory + "/" + copyfromHeader.TrimStart('/'));
+                                    continue;
                                 }
-                                else
-                                {
 
+                                using (var newFile = new FileStream(fullPath, FileMode.Create))
+                                {
+                                    request.InputStream.CopyTo(newFile, DefaultValues.BufferSize);
                                 }
                             }
                             catch (FileNotFoundException)
@@ -85,14 +83,21 @@ namespace http_filetransfer {
 
                                     foreach (var entry in directoryListing)
                                     {
-                                        writer.Write(JsonConvert.SerializeObject(entry));
+                                        writer.Write(
+                                            JsonConvert
+                                            .SerializeObject(entry, 
+                                            new JsonSerializerSettings()
+                                            {
+                                                DateFormatString = "yyyy/MM/dd HH:mm",
+                                                Formatting = Formatting.Indented
+                                            }));
                                     }
                                     writer.Flush();
                                 }
                                 else
                                 {
                                     Stream file = fileSystemProvider.GetFileStream(fullPath);
-                                    file.CopyTo(output, 15096);
+                                    file.CopyTo(output, DefaultValues.BufferSize);
                                 }
                             }
                             catch (FileNotFoundException)
@@ -128,7 +133,7 @@ namespace http_filetransfer {
                             {
                                 response.StatusCode = 404;
                             }
-                            catch (Exception ex)
+                            catch (Exception)
                             {
                                 response.StatusCode = 400;
                             }
@@ -167,48 +172,6 @@ namespace http_filetransfer {
 
                 writer.Dispose();
             }
-
-        }
-
-        private void Listener_OnNewRequestReceived(object sender, RequestReceivedEventArgs e)
-        {
-           // var request = HttpRequestParser.Parse(e.Request);
-
-            //switch (request.HttpMethod)
-            //{
-            //    case Data.HttpMethod.Post:
-            //        {
-            //            break;
-            //        }
-            //    case Data.HttpMethod.Get:
-            //        {
-            //            try
-            //            {
-                            
-            //                var fileStream = fileSystemProvider.GetFileStream(DefaultValues.ServerBaseDirectory + request.Request);
-
-            //                NetworkStream clientStream = e.User.GetStream();
-
-            //                var writer = new StreamWriter(clientStream);
-
-            //                writer.WriteLine($"HTTP/1.1 {(int)HttpResponseCode.Okay}");
-
-            //                fileStream.CopyTo(fileStream, 15096);
-                            
-
-
-            //            }
-            //            catch
-            //            {
-
-            //            }
-            //            break;
-            //        }
-            //}
-        }
-
-        private void OpenConnectionAndSendFile(string filePath)
-        {
 
         }
     }

@@ -27,7 +27,7 @@ namespace Chat
                 var client = 
                     new PtpClient(
                     new ConsoleLogger(),
-                    connManager)
+                    connManager) 
                     {
                         ClientName = input
                     };

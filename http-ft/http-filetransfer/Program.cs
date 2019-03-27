@@ -8,6 +8,7 @@ namespace http_filetransfer {
         {
             var handler = new HttpRequestsHandler(new DefaultFileSystemProvider());
             Task.Run(() => handler.Start());
+            Console.WriteLine("Http file server is running!. Hit enter to close it.");
             Console.ReadLine();
         }
     }

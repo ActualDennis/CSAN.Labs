@@ -7,7 +7,7 @@ namespace Chat.Connections {
     public interface IPtpConnectionManager {
         Task Start();
 
-        void SendMessage(string message);
+        Task SendMessage(string message);
 
         event EventHandler<LogEventArgs> OnLocalEventHappened;
 
