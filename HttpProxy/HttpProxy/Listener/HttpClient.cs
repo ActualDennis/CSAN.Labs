@@ -15,7 +15,7 @@ namespace HttpProxy.Listener {
         {
             this.firewall = firewall;
             this.listener = listener;
-            this.listener.OnNewRequestReceived += async (s,e) => await Listener_OnNewConnectionReceived(s,e);
+            this.listener.OnNewRequestReceived += Listener_OnNewConnectionReceived;
             this.logger = logger;
         }
 
@@ -24,7 +24,7 @@ namespace HttpProxy.Listener {
 
         private Logger<HttpRequestEntry> logger { get; set; }
 
-        private async Task Listener_OnNewConnectionReceived(object sender, RequestReceivedEventArgs e)
+        private void Listener_OnNewConnectionReceived(object sender, RequestReceivedEventArgs e)
         {
             string hostname = HttpQueryParser.GetHostName(e.Request);
             NetworkStream proxyClientStream = e.User.GetStream();
@@ -44,34 +44,23 @@ namespace HttpProxy.Listener {
 
                 targetServerStream.Write(e.Request);
 
-                var builder = new StringBuilder();
+                var responseBuffer = new byte[32];
 
-                var responseBuffer = new byte[64];
+                //this is to capture status of http request and log it.
 
-                for (int offsetCounter = 0; true; ++offsetCounter)
+                targetServerStream.Read(responseBuffer, 0, responseBuffer.Length);
+
+                proxyClientStream.Write(responseBuffer, 0, responseBuffer.Length);
+
+                var headers = Encoding.UTF8.GetString(responseBuffer).Split("\r\n");
+
+                logger.Log(new HttpRequestEntry()
                 {
-                    var bytesRead = await targetServerStream.ReadAsync(responseBuffer, 0, responseBuffer.Length);
+                    ResponseCode = headers[0].Substring(headers[0].IndexOf(" ") + 1),
+                    Hostname = hostname
+                });
 
-                    Console.WriteLine($"Read {bytesRead} from {hostname}.");
-
-                    if (bytesRead.Equals(0))
-                        return;
-
-                    await proxyClientStream.WriteAsync(responseBuffer, 0, responseBuffer.Length);
-
-                    builder.Append(Encoding.UTF8.GetString(responseBuffer));
-
-                    if (offsetCounter.Equals(0))
-                    {
-                        var headers = builder.ToString().Split("\r\n");
-
-                        logger.Log(new HttpRequestEntry()
-                        {
-                            ResponseCode = headers[0].Substring(headers[0].IndexOf(" ") + 1),
-                            Hostname = hostname
-                        });
-                    }
-                }
+                targetServerStream.CopyTo(proxyClientStream);
                     
             }
             catch { return; }
