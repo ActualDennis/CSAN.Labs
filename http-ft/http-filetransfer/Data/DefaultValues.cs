@@ -10,5 +10,9 @@ namespace http_filetransfer.Data {
         public static string ServerBaseDirectory => "H:/httpft";
 
         public static int BufferSize => 15096;
+
+        public static string CopyToHeader => "Copy-to";
+
+        public static int NotImplementedResponseCode => 501;
     }
 }
