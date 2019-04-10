@@ -27,9 +27,15 @@ namespace http_filetransfer.Commands
 
                 if (copyTo == null)
                 {
+                    var dirname = Path.GetDirectoryName(fullPath);
+
+                    if (!Directory.Exists(dirname))
+                    {
+                        Directory.CreateDirectory(dirname);
+                    }
+
                     using (var newFile = new FileStream(fullPath, FileMode.Create))
                     {
-                        request.InputStream.ReadTimeout = 2500;
                         request.InputStream.CopyTo(newFile, DefaultValues.BufferSize);
                     }
 
@@ -46,8 +52,9 @@ namespace http_filetransfer.Commands
             {
                 response.StatusCode = 404;
             }
-            catch (Exception)
+            catch (Exception ex)
             {
+                Console.WriteLine($"Unhandled exception: {ex.Message}");
                 response.StatusCode = 400;
             }
             finally { response.OutputStream.Close(); }

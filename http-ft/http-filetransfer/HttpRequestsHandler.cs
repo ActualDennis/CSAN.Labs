@@ -25,26 +25,32 @@ namespace http_filetransfer {
         public void Start()
         {
             var listener = new HttpListener();
-            listener.Prefixes.Add("http://*:80/");
-            listener.Start();
 
-            while (true)
+            try
             {
-                HttpListenerContext context = listener.GetContext();
+                listener.Prefixes.Add("http://*:80/");
+                listener.Start();
 
-                var command = HttpCommandfactory.GetCommand(context.Request.HttpMethod, fileSystemProvider);
-
-                if(command is UnrecognizedCommand)
+                while (true)
                 {
-                    context.Response.StatusCode = DefaultValues.NotImplementedResponseCode;
-                    continue;
+                    HttpListenerContext context = listener.GetContext();
+
+                    var command = HttpCommandfactory.GetCommand(context.Request.HttpMethod, fileSystemProvider);
+
+                    if (command is UnrecognizedCommand)
+                    {
+                        context.Response.StatusCode = DefaultValues.NotImplementedResponseCode;
+                        context.Response.OutputStream.Close();
+                        continue;
+                    }
+
+                    HttpListenerResponse response = context.Response;
+
+                    command.Execute(context.Request, ref response);
                 }
-
-                HttpListenerResponse response = context.Response;
-
-                command.Execute(context.Request, ref response);
             }
-
+            catch (HttpListenerException) { Console.WriteLine("Http listener is already running. Try shutting down your apache/nginx/iis"); }
+            finally { listener.Close(); }
         }
     }
 }
